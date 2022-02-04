@@ -1,0 +1,4 @@
+pyQiwiP2P
+pytz
+geopy
+pytelegrambotapi
