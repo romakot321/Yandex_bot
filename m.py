@@ -11,8 +11,7 @@ from u import User, Review
 from DBHandler import Handler
 import geopy
 
-# open('config_file').readline(1).strip()
-bot = telebot.TeleBot('1844480969:AAE7ybgsJLzoz28Er9powY5EDcigDZvSyAo')
+bot = telebot.TeleBot(open('config_file').read())
 locator = geopy.Nominatim(user_agent="A")
 handler = Handler()
 

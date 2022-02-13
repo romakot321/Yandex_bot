@@ -1,14 +1,17 @@
 import sqlite3
 import time
+import os
 
 
 class Handler:
-    conn = sqlite3.connect('../taxi_bot/data', check_same_thread=False)
-    cur = conn.cursor()
-
     def __init__(self):
-        self.conn = sqlite3.connect('../taxi_bot/data', check_same_thread=False, isolation_level=None)
-        self.cur = self.conn.cursor()
+        if 'data.db' not in os.listdir():
+            self.conn = sqlite3.connect('data.db', check_same_thread=False, isolation_level=None)
+            self.cur = self.conn.cursor()
+            self.init()
+        else:
+            self.conn = sqlite3.connect('data.db', check_same_thread=False, isolation_level=None)
+            self.cur = self.conn.cursor()
 
     def doAction(self, func, args):
         print(func, args)
@@ -18,9 +21,8 @@ class Handler:
             time.sleep(1)
             self.doAction(func, args)
 
-    @staticmethod
-    def init():
-        Handler.cur.executescript(
+    def init(self):
+        self.cur.executescript(
             '''
             CREATE TABLE users (
                 id      INT     PRIMARY KEY
@@ -35,7 +37,7 @@ class Handler:
             );
             '''
         )
-        Handler.cur.executescript(
+        self.cur.executescript(
             '''
                 CREATE TABLE paths (
                 id              INT      UNIQUE
@@ -54,7 +56,7 @@ class Handler:
             );
             '''
         )
-        Handler.cur.executescript(
+        self.cur.executescript(
             '''
             CREATE TABLE bills (
                 id          INT     PRIMARY KEY
@@ -71,12 +73,12 @@ class Handler:
         self.conn.commit()
         if isinstance(user_id, int) or isinstance(user_id, str) and user_id.isdigit():
             try:
-                u = Handler.cur.execute(f"SELECT * FROM users WHERE id='{int(user_id)}'").fetchall()
+                u = self.cur.execute(f"SELECT * FROM users WHERE id='{int(user_id)}'").fetchall()
             except sqlite3.ProgrammingError:
                 return self.doAction(self.get_user.__func__, (self, user_id,))
         elif isinstance(user_id, str):
             try:
-                u = Handler.cur.execute(f"SELECT * FROM users WHERE nickname='{user_id}'").fetchall()
+                u = self.cur.execute(f"SELECT * FROM users WHERE nickname='{user_id}'").fetchall()
             except sqlite3.ProgrammingError:
                 return self.doAction(self.get_user.__func__, (self, user_id,))
         if u:
