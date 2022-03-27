@@ -64,7 +64,7 @@ class Path:
             return Path.handler.get_all_paths_ids()
         paths = Path.handler.get_all_paths_ids()
         return [paths[i:i + Path.PATHS_PER_PAGE]
-                for i in range(0, len(paths), Path.PATHS_PER_PAGE)]
+                for i in range(0, len(paths), Path.PATHS_PER_PAGE)] if len(paths) > 0 else [[]]
         # return paths
 
     def addCompanion(self, user_id):

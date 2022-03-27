@@ -86,7 +86,10 @@ class Handler:
             u = self.cur.execute(f"SELECT id FROM users WHERE nickname='{username}'").fetchall()
         except sqlite3.ProgrammingError:
             return self.doAction(self.get_user.__func__, (self, username,))
-        return u[0][0]
+        try:
+            return u[0][0]
+        except IndexError:
+            raise ValueError('User not found')
 
     def get_all_users_ids(self, *args) -> list:
         try:

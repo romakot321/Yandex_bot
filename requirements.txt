@@ -1,4 +1,4 @@
-pyQiwiP2P
+pyQiwiP2P==1.0.1
 pytz
 geopy
 pytelegrambotapi
