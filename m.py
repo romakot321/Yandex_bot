@@ -313,25 +313,38 @@ class Worker:
         bot.delete_message(call.message.chat.id, call.message.id)
 
     @staticmethod
-    def find_path(call, *args):
+    def find_path(call, user_id, page=0):
         keyboard = types.InlineKeyboardMarkup()
-        for path_id in handler.get_all_paths_ids():
+        paths = Path.getAllPathsId(paginition=True)
+        for path_id in paths[page]:  # TODO система поиска
             p = Path.getPath(path_id)
             if p.finish_time is None:
                 keyboard.add(types.InlineKeyboardButton(text=str(p),
                                                         callback_data=f'about_path {path_id}'))
-        keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'mainMenu'))
-        bot.edit_message_media(types.InputMediaPhoto(open('findPath.jpg', 'rb')),
-                               call.message.chat.id, call.message.id,
-                               reply_markup=keyboard)
+        keyboard.add(types.InlineKeyboardButton(text='В меню', callback_data=f'mainMenu'))
+        if page > 0:
+            if page + 1 < len(paths):
+                keyboard.row(
+                    types.InlineKeyboardButton(text='Следующие', callback_data=f'find_path {page + 1}'),
+                    types.InlineKeyboardButton(text='Назад', callback_data=f'find_path {page - 1}')
+                )
+            else:
+                keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'find_path {page - 1}'))
+            bot.edit_message_reply_markup(call.message.chat.id, call.message.id, reply_markup=keyboard)
+        else:
+            if page + 1 < len(paths):
+                keyboard.add(types.InlineKeyboardButton(text='Следующие', callback_data=f'find_path {page + 1}'))
+            bot.edit_message_media(types.InputMediaPhoto(open('findPath.jpg', 'rb')),
+                                   call.message.chat.id, call.message.id,
+                                   reply_markup=keyboard)
 
     @staticmethod
     def about_path(call, user_id, path_id, edit_msg=False):
         keyboard = types.InlineKeyboardMarkup()
         p = Path.getPath(path_id)
         keyboard.add(types.InlineKeyboardButton(text='Отзывы о водителе',
-                                                callback_data=f'reviews_user {p.driver_username}'))
-        if call.from_user.username == p.driver_username:
+                                                callback_data=f'reviews_user {p.driver_id} {path_id}'))
+        if call.from_user.id == p.driver_id:
             if p.start_time is None:
                 keyboard.add(types.InlineKeyboardButton(text='Начать поездку',
                                                         callback_data=f'start_path {p.id}'))
@@ -339,7 +352,7 @@ class Worker:
                     and p.start_time.timestamp() <= datetime.datetime.now(pytz.timezone('Europe/Moscow')).timestamp():
                 keyboard.add(types.InlineKeyboardButton(text='Окончить поездку',
                                                         callback_data=f'finish_path {p.id}'))
-        if p.finish_time is None:
+        elif p.finish_time is None:
             if int(call.from_user.id) not in p.companions and len(p.companions) < p.max_companions:
                 keyboard.add(types.InlineKeyboardButton(text='Присоединиться',
                                                         callback_data=f'join_to_path {p.id}'))
@@ -348,12 +361,11 @@ class Worker:
                                                         callback_data=f'leave_path {p.id}'))
         keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'delete_message'))
         if edit_msg:
-            bot.edit_message_text(p.about(), call.message.chat.id, call.message.id,
-                                  reply_markup=keyboard)
+            bot.edit_message_caption(p.about(), call.message.chat.id, call.message.id,
+                                     reply_markup=keyboard)
         else:
-            bot.send_photo(call.message.chat.id, User.getUser(p.driver_username).form['car_photo'],
+            bot.send_photo(call.message.chat.id, User.getUser(p.driver_id).form['car_photo'],
                            caption=p.about(), reply_markup=keyboard)
-            # bot.send_message(call.message.chat.id, p.about(), reply_markup=keyboard)
 
     @staticmethod
     def start_path(call, user_id, path_id):
@@ -416,20 +428,20 @@ class Worker:
         Worker.about_path(call, user_id, path_id, edit_msg=True)
 
     @staticmethod
-    def reviews_user(call, user_id, reviews_user_id):
+    def reviews_user(call, user_id, reviews_user_id, ref_path_id):
         keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'send_main'))
+        keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'about_path {ref_path_id} 1'))
         u = User.getUser(reviews_user_id)
         t = 'Отзывы:\n'
         for r in u.reviews:
             t += '\t' + r.text + f'\n\tОценка: {r.score}/5\n\n'
-        bot.edit_message_text(t, call.message.chat.id, call.message.id, reply_markup=keyboard)
+        bot.edit_message_caption(t, call.message.chat.id, call.message.id, reply_markup=keyboard)
 
     @staticmethod
     def profile(call, user_id):
         u = User.getUser(user_id)
         keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'delete_message'))
+        keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'mainMenu'))
         keyboard.add(types.InlineKeyboardButton(text='Редактировать профиль', callback_data=f'edit_profile'))
         t = f'''
 Водитель @{u.nickname}
@@ -440,8 +452,9 @@ class Worker:
 Номер авто: {u.form['car_number']}
 Рейтинг: {u.getScore()}/5
         '''
-        bot.send_photo(call.message.chat.id, u.form['car_photo'], caption=t, reply_markup=keyboard)
-        bot.edit_message_caption(t, call.message.chat.id, call.message.id)
+        bot.edit_message_media(types.InputMediaPhoto(u.form['car_photo'], caption=t),
+                               call.message.chat.id, call.message.id,
+                               reply_markup=keyboard)
 
     @staticmethod
     def edit_profile(call, user_id):
@@ -492,7 +505,7 @@ def main(call: types.CallbackQuery):
     if ' ' in args[0]:
         args = args[0].split()
         if args[1].isdigit():
-            args = [args[0], int(args[1]), *args[2:]]
+            args = [args[0], int(args[1]), *map(lambda i: int(i) if i.isdigit() else i, args[2:])]
     args.insert(1, call.from_user.id)
     for name, f in inspect.getmembers(Worker, predicate=inspect.isfunction):
         if name == args[0]:

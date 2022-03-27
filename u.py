@@ -37,6 +37,10 @@ class User:
                 self.reviews.append(Review.fromTextToObject(r))
 
     @staticmethod
+    def getUserId(username):
+        return User.handler.getUserId(username) if str(username) != 'None' else None
+
+    @staticmethod
     def getUser(user_id):
         return User.handler.get_user(user_id)
 

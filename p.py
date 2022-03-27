@@ -1,14 +1,15 @@
 import datetime
-from typing import List
+from typing import List, Union
 
 from DBHandler import Handler
 
 
 class Path:
     handler = Handler()
+    PATHS_PER_PAGE = 10
 
-    def __init__(self, id, driver_username, companions, max_companions,
-                 from_point, to_point, price: int, add_text=None,
+    def __init__(self, id: int, driver_username: str, companions: Union[list, str], max_companions: int,
+                 from_point: str, to_point: str, price: int, add_text: str = None,
                  start_time=None, finish_time=None):
         """Создание маршрута
 
@@ -19,6 +20,7 @@ class Path:
         :param price: Цена
         :param add_text: Замечание от водителя
         """
+        from u import User
         if id is None:
             id = len(Path.handler.get_all_paths_ids()) + 1
         if companions:
@@ -30,17 +32,20 @@ class Path:
             companions = []
         self.id = int(id)
         self.driver_username = driver_username
+        self.driver_id = User.getUserId(driver_username)
         self.companions: List[int] = companions
         self.max_companions = int(max_companions)
         self.from_point = from_point
         self.to_point = to_point
         self.price = price
-        self.add_text = '' if not add_text else add_text  # TODO: ввод замечания от водителя
+        self.add_text = '' if not add_text else add_text
         if isinstance(start_time, datetime.datetime):
             self.start_time = start_time
         else:
-            self.start_time = datetime.datetime.fromisoformat(start_time) if start_time and start_time != 'None' else None
-        self.finish_time = datetime.datetime.fromisoformat(finish_time) if finish_time and finish_time != 'None' else None
+            self.start_time = datetime.datetime.fromisoformat(start_time) \
+                if start_time and start_time != 'None' else None
+        self.finish_time = datetime.datetime.fromisoformat(finish_time) \
+            if finish_time and finish_time != 'None' else None
 
     @staticmethod
     def getPath(path_id) -> 'Path':
@@ -53,8 +58,17 @@ class Path:
         else:
             Path.handler.add_path(Path(*path_params))
 
+    @staticmethod
+    def getAllPathsId(paginition=False) -> List[List[int]]:
+        if not paginition:
+            return Path.handler.get_all_paths_ids()
+        paths = Path.handler.get_all_paths_ids()
+        return [paths[i:i + Path.PATHS_PER_PAGE]
+                for i in range(0, len(paths), Path.PATHS_PER_PAGE)]
+        # return paths
+
     def addCompanion(self, user_id):
-        if len(self.companions) < self.max_companions:
+        if len(self.companions) < self.max_companions and user_id not in self.companions:
             self.companions.append(user_id)
             Path.handler.update_path(self.id, 'companions', self.__getstate__()['companions_data'])
 
@@ -69,7 +83,7 @@ class Path:
     def about(self):
         from u import User
         s = f'''
-{User.getUser(self.driver_username).about()}
+{User.getUser(self.driver_id).about()}
 Цена - {self.price}
 Примечание: {self.add_text}
 Попутчики: {", ".join([f"@{User.getUser(i).nickname}" for i in self.companions])}({len(self.companions)}/{self.max_companions})'''
@@ -87,6 +101,7 @@ class Path:
         if not d['companions_data']:
             d['companions_data'] = None
         d.pop('companions')
+        d.pop('driver_id')
         return d
 
     def __setattr__(self, key, value):

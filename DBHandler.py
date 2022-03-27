@@ -28,8 +28,7 @@ class Handler:
                 id      INT     PRIMARY KEY
                                      NOT NULL
                                      UNIQUE,
-                nickname     VARCHAR NOT NULL
-                                     UNIQUE,
+                nickname     VARCHAR NOT NULL,
                 is_driver    BOOLEAN NOT NULL
                                      DEFAULT (0),
                 reviews_data TEXT,
@@ -77,13 +76,17 @@ class Handler:
             except sqlite3.ProgrammingError:
                 return self.doAction(self.get_user.__func__, (self, user_id,))
         elif isinstance(user_id, str):
-            try:
-                u = self.cur.execute(f"SELECT * FROM users WHERE nickname='{user_id}'").fetchall()
-            except sqlite3.ProgrammingError:
-                return self.doAction(self.get_user.__func__, (self, user_id,))
+            raise ValueError('Get user by username not allowed')
         if u:
             return User(*u[0])
         return None
+
+    def getUserId(self, username: str) -> int:
+        try:
+            u = self.cur.execute(f"SELECT id FROM users WHERE nickname='{username}'").fetchall()
+        except sqlite3.ProgrammingError:
+            return self.doAction(self.get_user.__func__, (self, username,))
+        return u[0][0]
 
     def get_all_users_ids(self, *args) -> list:
         try:
