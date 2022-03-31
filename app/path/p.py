@@ -1,7 +1,7 @@
 import datetime
 from typing import List, Union
 
-from DBHandler import Handler
+from app.DBHandler import Handler
 
 
 class Path:
@@ -20,7 +20,7 @@ class Path:
         :param price: Цена
         :param add_text: Замечание от водителя
         """
-        from u import User
+        from app.user.u import User
         if id is None:
             id = len(Path.handler.get_all_paths_ids()) + 1
         if companions:
@@ -81,7 +81,7 @@ class Path:
                 pass
 
     def about(self):
-        from u import User
+        from app.user.u import User
         s = f'''
 {User.getUser(self.driver_id).about()}
 Цена - {self.price}

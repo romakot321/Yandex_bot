@@ -1,7 +1,7 @@
 import datetime
 
 from pyqiwip2p import QiwiP2P
-from DBHandler import Handler
+from app.DBHandler import Handler
 
 
 class Bill:

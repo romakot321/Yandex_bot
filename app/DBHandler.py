@@ -14,7 +14,6 @@ class Handler:
             self.cur = self.conn.cursor()
 
     def doAction(self, func, args):
-        print(func, args)
         try:
             return func(*args)
         except sqlite3.ProgrammingError:
@@ -22,6 +21,7 @@ class Handler:
             self.doAction(func, args)
 
     def init(self):
+        """Создание файла базы данных"""
         self.cur.executescript(
             '''
             CREATE TABLE users (
@@ -68,7 +68,7 @@ class Handler:
         )
 
     def get_user(self, user_id):
-        from u import User
+        from app.user.u import User
         self.conn.commit()
         if isinstance(user_id, int) or isinstance(user_id, str) and user_id.isdigit():
             try:
@@ -98,7 +98,7 @@ class Handler:
             return self.doAction(self.get_all_users_ids.__func__, (self, None))
 
     def add_user(self, user_id, nickname):
-        from u import User
+        from app.user.u import User
         uu = User(user_id, nickname)
         s = "', '".join([str(v) for _, v in uu.__getstate__().items()])
         try:
@@ -116,7 +116,7 @@ class Handler:
             return self.doAction(self.update_user.__func__, (self, user_id, key, value))
 
     def get_path(self, path_id):
-        from p import Path
+        from app.path.p import Path
         try:
             p = self.cur.execute(f'SELECT * FROM paths WHERE id={path_id}').fetchall()
         except sqlite3.ProgrammingError:
@@ -147,14 +147,13 @@ class Handler:
 
     def add_bill(self, **bill_params):
         s = "', '".join([str(v) for _, v in bill_params.items()])
-        print(s)
         try:
             self.cur.execute(f"INSERT INTO bills VALUES ('{s}')")
         except sqlite3.ProgrammingError:
             return self.doAction(self.add_user.__func__, (self, bill_params))
 
     def get_bill(self, id):
-        from b import Bill
+        from app.bill.b import Bill
         try:
             p = self.cur.execute(f"SELECT * FROM bills WHERE id='{id}'").fetchall()
         except sqlite3.ProgrammingError:

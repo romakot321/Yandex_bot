@@ -2,8 +2,8 @@ import json
 from typing import Union
 from typing import Any
 
-from DBHandler import Handler
-from b import Bill
+from app.DBHandler import Handler
+from app.bill.b import Bill
 
 
 class Review:
