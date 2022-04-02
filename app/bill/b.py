@@ -50,6 +50,13 @@ class Bill:
         '''
         return s
 
+    def delete(self):
+        Bill.handler.delete_bill(self.bill_object.bill_id)
+
+    def renew(self):
+        self.bill_object = Bill.p2p.bill(amount=int(self.price),
+                                         expiration=datetime.datetime.now() + datetime.timedelta(days=1))
+
     def __getstate__(self) -> dict:
         d = self.__dict__.copy()
         d = {'id': self.bill_object.bill_id} | d

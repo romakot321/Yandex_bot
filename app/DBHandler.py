@@ -161,6 +161,12 @@ class Handler:
         if p:
             return Bill(*p[0])
 
+    def delete_bill(self, id):
+        try:
+            p = self.cur.execute(f"DELETE FROM bills WHERE id='{id}'").fetchall()
+        except sqlite3.ProgrammingError:
+            return self.doAction(self.get_path.__func__, (self, id))
+
     def get_all_bills_ids(self, *args) -> list:
         try:
             return list(map(lambda i: i[0], self.cur.execute('SELECT id FROM bills').fetchall()))

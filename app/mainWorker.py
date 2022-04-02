@@ -1,4 +1,5 @@
 from app.user import User
+from app.bill import Bill
 from app import bot, handler
 
 from telebot import types
@@ -49,10 +50,32 @@ def moder_menu(call, user_id):
         keyboard = types.InlineKeyboardMarkup()
         keyboard.add(types.InlineKeyboardButton(text='Заявки', callback_data='moder_regRequests'))
         keyboard.add(types.InlineKeyboardButton(text='Создать тестовый маршрут', callback_data='moder_testPath'))
+        keyboard.add(types.InlineKeyboardButton(text='Список открытых счетов', callback_data='moder_openBills'))
         keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='mainMenu'))
         bot.edit_message_media(types.InputMediaPhoto(open('images/moderMenu.jpg', 'rb')),
                                call.message.chat.id, call.message.id,
                                reply_markup=keyboard)
+
+
+def moder_openBills(call, user_id):
+    if int(user_id) in User.getModersId():
+        keyboard = types.InlineKeyboardMarkup()
+        bills = [Bill.get_bill(i) for i in handler.get_all_bills_ids() if not Bill.get_bill(i).status]
+        for b in bills:
+            keyboard.add(types.InlineKeyboardButton(text=f'{b.to_username} {b.price}руб.',
+                                                    callback_data=f'moder_seeBill {b.bill_object.bill_id}'))
+        keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='mainMenu'))
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.id, reply_markup=keyboard)
+
+
+def moder_seeBill(call, user_id, bill_id):
+    if int(user_id) in User.getModersId():
+        bill = Bill.get_bill(bill_id)
+        keyboard = types.InlineKeyboardMarkup()
+        keyboard.add(types.InlineKeyboardButton(text='Аннулировать', callback_data=f'delete_bill {bill_id}'))
+        keyboard.add(types.InlineKeyboardButton(text='Перевыпустить', callback_data=f'renew_bill {bill_id}'))
+        keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='delete_message'))
+        bot.send_message(call.message.chat.id, bill.text(), reply_markup=keyboard)
 
 
 def moder_regRequests(call, *args):

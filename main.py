@@ -1,6 +1,7 @@
 from app import bot, mainWorker
 from app.path import pathWorker
 from app.user import userWorker
+from app.bill import billWorker
 
 from telebot import types
 import inspect
@@ -23,7 +24,7 @@ def main(call: types.CallbackQuery):
         if args[1].isdigit():
             args = [args[0], int(args[1]), *map(lambda i: int(i) if i.isdigit() else i, args[2:])]
     args.insert(1, call.from_user.id)
-    for worker in (mainWorker, pathWorker, userWorker):
+    for worker in (mainWorker, pathWorker, userWorker, billWorker):
         for name, f in inspect.getmembers(worker, predicate=inspect.isfunction):
             if name == args[0]:
                 f(call, *args[1:])
