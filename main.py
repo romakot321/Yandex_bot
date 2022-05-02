@@ -17,15 +17,16 @@ def start_message(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def main(call: types.CallbackQuery):
+    """Обработка нажатий кнопки и вызов нужной функции"""
     print(call.from_user.username, call.data)
     args = [call.data]
-    if ' ' in args[0]:
+    if ' ' in args[0]:  # Создание аргументов для функции
         args = args[0].split()
         if args[1].isdigit():
-            args = [args[0], int(args[1]), *map(lambda i: int(i) if i.isdigit() else i, args[2:])]
+            args = [args[0], int(args[1]), *map(lambda i: int(i) if i.isdigit() else i, args[2:])]  # Получение аргументов из call.data
     args.insert(1, call.from_user.id)
     for worker in (mainWorker, pathWorker, userWorker, billWorker):
-        for name, f in inspect.getmembers(worker, predicate=inspect.isfunction):
+        for name, f in inspect.getmembers(worker, predicate=inspect.isfunction):  # Перебор функций
             if name == args[0]:
                 f(call, *args[1:])
 

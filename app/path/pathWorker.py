@@ -138,6 +138,7 @@ def new_path7(msg, from_point, to_point, price, max_companions, add_text):
 
 
 def find_path(call, user_id, page=0):
+    """Кнопка Найти машину"""
     keyboard = types.InlineKeyboardMarkup()
     paths = Path.getAllPathsId(paginition=True)
     for path_id in paths[page]:  # TODO система поиска

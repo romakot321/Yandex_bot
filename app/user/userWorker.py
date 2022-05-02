@@ -21,6 +21,9 @@ class notValidity(Exception):
 
 
 def check_validity(msg: Union[str, types.Message], step: str) -> Union[str, types.Message]:
+    """Проверка на правильность заполнения формы регистрации
+    :param msg: Полученое сообщение
+    :param step: Шаг заполнения из register_steps"""
     if step == 'birthday':
         msg = msg.split('.')
         if len(msg) == 3:
@@ -101,6 +104,7 @@ def cancel_reg(call, user_id, other_user_id: int):
 
 
 def add_review1(call, user_id, to_user):
+    """Создание отзыва о водителе"""
     if isinstance(to_user, int):
         to_user = User.getUser(to_user).nickname
     m = bot.send_message(user_id, f'Введите комментарий("." чтобы оставить пустым) отзыва для '
@@ -127,11 +131,12 @@ def add_review3(msg, user_id, to_user_id, text):
 
 
 def profile(call, user_id):
+    """Кнопка Профиль в главном меню"""
     u = User.getUser(user_id)
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'mainMenu'))
     keyboard.add(types.InlineKeyboardButton(text='Редактировать профиль', callback_data=f'edit_profile'))
-    t = f'''
+    text = f'''
 Водитель @{u.nickname}
 Полное имя: {u.form['full_name']}
 Дата рождения: {u.form['birthday']}
@@ -140,7 +145,7 @@ def profile(call, user_id):
 Номер авто: {u.form['car_number']}
 Рейтинг: {u.getScore()}/5
     '''
-    bot.edit_message_media(types.InputMediaPhoto(u.form['car_photo'], caption=t),
+    bot.edit_message_media(types.InputMediaPhoto(u.form['car_photo'], caption=text),
                            call.message.chat.id, call.message.id,
                            reply_markup=keyboard)
 
@@ -181,7 +186,10 @@ def edit_profile2(message, user_id, data=None):
         bot.register_next_step_handler(message, edit_profile2, user_id, data)
 
 
-def reviews_user(call, user_id, reviews_user_id, ref_path_id):
+def reviews_user(call, user_id, reviews_user_id: int, ref_path_id: int):
+    """
+    :param user_id: От кого получено сообщение
+    :param reviews_user_id: У кого смотреть отзывы"""
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'about_path {ref_path_id} 1'))
     u = User.getUser(reviews_user_id)

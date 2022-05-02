@@ -5,7 +5,8 @@ from app import bot, handler
 from telebot import types
 
 
-def main_keyboard(user_id, nickname):
+def main_keyboard(user_id: int, nickname: str) -> types.InlineKeyboardMarkup:
+    """Клавиатура для главного меню"""
     keyboard = types.InlineKeyboardMarkup()
     u = User.getUser(user_id)
     if u is None:
@@ -46,6 +47,7 @@ def question(call, *args):
 
 
 def moder_menu(call, user_id):
+    """Отправление сообщения с меню модерации"""
     if int(user_id) in User.getModersId():
         keyboard = types.InlineKeyboardMarkup()
         keyboard.add(types.InlineKeyboardButton(text='Заявки', callback_data='moder_regRequests'))
@@ -58,6 +60,7 @@ def moder_menu(call, user_id):
 
 
 def moder_openBills(call, user_id):
+    """Просмотр открытых счетов модерацией"""
     if int(user_id) in User.getModersId():
         keyboard = types.InlineKeyboardMarkup()
         bills = [Bill.get_bill(i) for i in handler.get_all_bills_ids() if not Bill.get_bill(i).status]
@@ -69,6 +72,7 @@ def moder_openBills(call, user_id):
 
 
 def moder_seeBill(call, user_id, bill_id):
+    """Подробная информация о счете."""
     if int(user_id) in User.getModersId():
         bill = Bill.get_bill(bill_id)
         keyboard = types.InlineKeyboardMarkup()
@@ -79,6 +83,7 @@ def moder_seeBill(call, user_id, bill_id):
 
 
 def moder_regRequests(call, *args):
+    """Заявки на регистрацию. Одобрение или отклонение"""
     keyboard = types.InlineKeyboardMarkup()
     for user_id in handler.get_all_users_ids():
         u = User.getUser(user_id)
@@ -91,7 +96,7 @@ def moder_regRequests(call, *args):
 
 
 def moder_seeUserForm(call, user_id, form_user_id: int):
-    """
+    """Просмотр определенной заявки с полной информацией
     :param user_id: Тот, кто нажал на кнопку
     :param form_user_id: Тот, чья форма
     """
@@ -125,7 +130,7 @@ def mainMenu(call: types.CallbackQuery, *args):
 
 
 def sendMainMenu(call, *args):
-    """Не редактирование, а отправка"""
+    """Не редактирование, а отправка отдельным сообщением меню"""
     bot.send_photo(call.message.chat.id, open('images/main.jpg', 'rb'),
                    reply_markup=main_keyboard(call.from_user.id,
                                               call.from_user.username))
