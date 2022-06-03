@@ -4,6 +4,7 @@ from app import mainWorker, bot
 from app.user import User, Review
 from telebot import types
 
+
 import datetime
 
 register_steps = [
@@ -43,6 +44,10 @@ def check_validity(msg: Union[str, types.Message], step: str) -> Union[str, type
 
 def register1(message, user_id, data=None):
     if 'message' in message.__dict__.keys():
+        if message.from_user.username is None:
+            bot.send_message(message.message.chat.id,
+                             'Задайте имя пользователя в настройках своего аккаунта для продолжения.')
+            return
         message = message.message
     if User.getUser(user_id).is_driver is False:
         if data is None:
@@ -68,36 +73,10 @@ def register1(message, user_id, data=None):
         bot.send_message(message.chat.id, 'Вы уже зарегистрированы.')
 
 
-def register2(msg, user_id, data):
+def register2(msg, user_id, data: dict):
     bot.send_message(msg.chat.id, 'Заявка на регистрацию подана на рассмотрение, ожидайте.')
     User.getUser(user_id).is_driver = False
     User.getUser(user_id).form = data
-
-
-def confirm_reg(call, user_id, other_user_id: int):
-    """
-    :param user_id: Тот, кто нажал на кнопку
-    :param other_user_id: Тот, с кем выполняются действия
-    """
-    User.getUser(other_user_id).is_driver = True
-    bot.send_message(other_user_id, f'Поздравляем, {User.getUser(other_user_id).nickname}, вы полностью прошли '
-                                    f'регистрацию! Размещайте свои '
-                                    'заявки на подвоз во вкладке «Найти пассажиров», которая находится в главном '
-                                    'меню. Удачных поездок!')
-    bot.delete_message(call.message.chat.id, call.message.id)
-    bot.delete_message(call.message.chat.id, call.message.id - 1)
-
-
-def cancel_reg(call, user_id, other_user_id: int):
-    """
-    :param user_id: Тот, кто нажал на кнопку
-    :param other_user_id: Тот, с кем выполняются действия
-    """
-    User.getUser(other_user_id).form = None
-    bot.send_message(other_user_id, 'К сожалению вы не прошли регистрацию. Проверьте достоверность введённых вами '
-                                    'данных. Если есть дополнительные вопросы, то обращайтесь к главному '
-                                    'менеджеру @Polenok_Anton')
-    mainWorker.moder_regRequests(call, user_id)
 
 
 def add_review1(call, user_id, to_user):

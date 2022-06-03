@@ -32,7 +32,8 @@ class Handler:
                 is_driver    BOOLEAN NOT NULL
                                      DEFAULT (0),
                 reviews_data TEXT,
-                form         TEXT
+                form         TEXT,
+                last_paid    VARCHAR
             );
             '''
         )
@@ -51,7 +52,8 @@ class Handler:
                 price           INT      NOT NULL,
                 add_text        TEXT,
                 start_time      DATETIME,
-                finish_time     DATETIME
+                finish_time     DATETIME,
+                type            VARCHAR
             );
             '''
         )
@@ -75,8 +77,8 @@ class Handler:
                 u = self.cur.execute(f"SELECT * FROM users WHERE id='{int(user_id)}'").fetchall()
             except sqlite3.ProgrammingError:
                 return self.doAction(self.get_user.__func__, (self, user_id,))
-        elif isinstance(user_id, str):
-            raise ValueError('Get user by username not allowed')
+        elif isinstance(user_id, str) or user_id is None:
+            raise ValueError('Get user by username not allowed OR id is None')
         if u:
             return User(*u[0])
         return None
@@ -116,26 +118,28 @@ class Handler:
             return self.doAction(self.update_user.__func__, (self, user_id, key, value))
 
     def get_path(self, path_id):
-        from app.path.p import Path
+        from app.path.p import Path, CompanionPath
         try:
             p = self.cur.execute(f'SELECT * FROM paths WHERE id={path_id}').fetchall()
         except sqlite3.ProgrammingError:
             return self.doAction(self.get_path.__func__, (self, path_id,))
         if p:
-            return Path(*p[0])
+            data = p[0]
+            if data[10] == 'path':
+                return Path(*data)
+            elif data[10] == 'companion_path':
+                return CompanionPath(data=data)
 
     def add_path(self, path):
         s = "', '".join([str(v) for _, v in path.__getstate__().items()])
         try:
             self.cur.execute(f"INSERT INTO paths VALUES ('{s}')")
-            # self.conn.commit()
         except sqlite3.ProgrammingError:
             return self.doAction(self.add_path.__func__, (self, path,))
 
     def update_path(self, path_id, key, value):
         try:
             self.cur.execute(f"UPDATE paths SET {key}='{value}' WHERE id='{path_id}'")
-            # self.conn.commit()
         except sqlite3.ProgrammingError:
             return self.doAction(self.update_path.__func__, (self, path_id, key, value))
 

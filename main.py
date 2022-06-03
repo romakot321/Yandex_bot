@@ -17,7 +17,7 @@ def start_message(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def main(call: types.CallbackQuery):
-    print(call.from_user.username, call.data)
+    print(call.from_user.id, call.from_user.username, call.data)
     args = [call.data]
     if ' ' in args[0]:
         args = args[0].split()

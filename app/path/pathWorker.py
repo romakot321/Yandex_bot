@@ -1,12 +1,27 @@
+from typing import Union
+
 from app import bot, locator, handler, mainWorker
 from app.user import userWorker, User
-from app.path import Path
+from app.path import Path, CompanionPath
 from app.bill import Bill
 
 import datetime
 import geopy
 import pytz
 from telebot import types
+
+path_create_steps = [
+    ("from_point", 'Введите начальную точку, в которой вы будете находится. Указывайте адрес как можно точнее, '
+                   'чтобы бот вас понял. Например, "Иркутск, Партизанская 1"'
+                   'Введите "отмена" для отмены'),
+    ("to_point", 'Введите адрес, в который вам необходимо попасть.'),
+    ('add_text', 'Введите примечание к тексту("." чтобы оставить пустым)'),
+    ('start_time', "Введите время, когда вы будете находится на начальной точке в формате ЧЧ:ММ по московскому времени"),
+]
+
+
+class notValidity(Exception):
+    pass
 
 
 def moder_testPath(call, *args):
@@ -15,10 +30,95 @@ def moder_testPath(call, *args):
     mainWorker.mainMenu(call)
 
 
+def comp_path_menu(call, *args):
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(types.InlineKeyboardButton(text='Список созданных водителями маршрутов',
+                                            callback_data='find_path 0 path'))
+    keyboard.add(types.InlineKeyboardButton(text='Создать заявку', callback_data='new_comp_path'))
+    keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='mainMenu'))
+    bot.edit_message_media(types.InputMediaPhoto(open('images/findPath.jpg', 'rb')),
+                           call.message.chat.id, call.message.id,
+                           reply_markup=keyboard)
+
+
+def driver_path_menu(call, *args):
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(types.InlineKeyboardButton(text='Список созданных попутчиками заявок',
+                                            callback_data='find_path 0 companion_path'))
+    keyboard.add(types.InlineKeyboardButton(text='Создать заявку', callback_data='new_path'))
+    keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='mainMenu'))
+    bot.edit_message_media(types.InputMediaPhoto(open('images/findPath.jpg', 'rb')),
+                           call.message.chat.id, call.message.id,
+                           reply_markup=keyboard)
+
+
+def check_validity(msg: str, step: str) -> str:
+    if step == 'from_point' or step == 'to_point':
+        if locator.geocode(msg) is None:
+            raise notValidity('Неверно введен адрес. Попробуйте снова.')
+    if step == 'add_text':
+        if msg == '.':
+            return ''
+    if step == 'start_time':
+        if len(msg) >= 4 and ':' in msg:
+            h, m = msg.split(':')
+            if h.isdigit() and m.isdigit() and int(h) in range(0, 24) and int(m) in range(0, 60):
+                start_time = datetime.datetime.now().replace(hour=int(h), minute=int(m),
+                                                             second=0)
+                if datetime.datetime.now(pytz.timezone('Europe/Moscow')).hour > start_time.hour:
+                    try:
+                        start_time = start_time.replace(day=start_time.day + 1)
+                    except ValueError:
+                        try:
+                            start_time = start_time.replace(month=start_time.month + 1, day=1)
+                        except ValueError:
+                            start_time = start_time.replace(month=1, day=1)
+            else:
+                raise notValidity('Неверный формат времени, попробуйте снова')
+        else:
+            raise notValidity('Неверный формат времени, попробуйте снова')
+        return start_time
+    return msg
+
+
+def new_comp_path(msg, user_id, data=None):
+    if data is None and 'message' in msg.__dict__:
+        if msg.from_user.username is None:
+            bot.send_message(msg.message.chat.id, 'Пожалуйста, задайте имя пользователя в настройках вашего аккаунта, '
+                                                  'чтобы другие попутчики могли с вами связаться.')
+        data = []
+        msg = msg.message
+        bot.delete_message(msg.chat.id, msg.id)
+    else:
+        step = path_create_steps[len(data)][0]
+        if step == 'from_point' and msg.text.lower() == 'отмена':
+            bot.delete_message(msg.chat.id, msg.id - 1)
+            mainWorker.sendMainMenu(msg)
+            return
+        try:
+            data.append((step, check_validity(msg.text, step)))
+        except notValidity as e:
+            bot.send_message(msg.chat.id, e.args[0])
+            bot.register_next_step_handler(msg, new_comp_path, user_id, data)
+            return
+    if len(data) == len(path_create_steps):
+        return create_comp_path(msg, dict(data))
+    step, text = path_create_steps[len(data)]
+    bot.send_message(msg.chat.id, text)
+    bot.register_next_step_handler(msg, new_comp_path, user_id, data)
+
+
+def create_comp_path(msg, data: dict):
+    data['id'] = None
+    data['companion_id'] = msg.from_user.id
+    CompanionPath.addPath(path=CompanionPath(**data))
+    bot.send_message(msg.chat.id, 'Заявка создана, ожидайте отклика одного из водителей.')
+    mainWorker.sendMainMenu(msg)
+
+
 def new_path(msg, user_id):
     u = User.getUser(user_id)
     if 'message' in msg.__dict__:
-        call = msg
         msg = msg.message
     b = u.checkBills()
     if not b:
@@ -137,11 +237,13 @@ def new_path7(msg, from_point, to_point, price, max_companions, add_text):
                                                          msg.from_user.username))
 
 
-def find_path(call, user_id, page=0):
+def find_path(call, user_id, page=0, path_type='path'):
     keyboard = types.InlineKeyboardMarkup()
     paths = Path.getAllPathsId(paginition=True)
     for path_id in paths[page]:  # TODO система поиска
         p = Path.getPath(path_id)
+        if not p.type == path_type:
+            continue
         if p.finish_time is None:
             keyboard.add(types.InlineKeyboardButton(text=str(p),
                                                     callback_data=f'about_path {path_id}'))
@@ -149,15 +251,15 @@ def find_path(call, user_id, page=0):
     if page > 0:
         if page + 1 < len(paths):
             keyboard.row(
-                types.InlineKeyboardButton(text='Следующие', callback_data=f'find_path {page + 1}'),
+                types.InlineKeyboardButton(text='Следующие', callback_data=f'find_path {page + 1} {path_type}'),
                 types.InlineKeyboardButton(text='Назад', callback_data=f'find_path {page - 1}')
             )
         else:
-            keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'find_path {page - 1}'))
+            keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'find_path {page - 1} {path_type}'))
         bot.edit_message_reply_markup(call.message.chat.id, call.message.id, reply_markup=keyboard)
     else:
         if page + 1 < len(paths):
-            keyboard.add(types.InlineKeyboardButton(text='Следующие', callback_data=f'find_path {page + 1}'))
+            keyboard.add(types.InlineKeyboardButton(text='Следующие', callback_data=f'find_path {page + 1} {path_type}'))
         bot.edit_message_media(types.InputMediaPhoto(open('images/findPath.jpg', 'rb')),
                                call.message.chat.id, call.message.id,
                                reply_markup=keyboard)
@@ -210,8 +312,8 @@ def finish_path(call, user_id, path_id):
     about_path(call, user_id, path_id, edit_msg=True)
     for c in p.companions:
         userWorker.add_review1(call, c, p.driver_username)
-    b = Bill.add_bill(p.driver_username, p.price // 10)
-    bot.send_message(call.message.chat.id, b.text())
+    # b = Bill.add_bill(p.driver_username, p.price // 10)
+    # bot.send_message(call.message.chat.id, b.text())
 
 
 def join_to_path(call, user_id, path_id):

@@ -11,10 +11,10 @@ def main_keyboard(user_id, nickname):
     if u is None:
         u = User.newUser(user_id, nickname)
 
-    keyboard.add(types.InlineKeyboardButton(text='Найти машину(по Иркутску)', callback_data='find_path'))
+    keyboard.add(types.InlineKeyboardButton(text='Найти машину(по Иркутску)', callback_data='comp_path_menu'))
     if u.is_driver:
-        keyboard.add(types.InlineKeyboardButton(text='Найти пассажира(по Иркутску)', callback_data='new_path'))
-        keyboard.add(types.InlineKeyboardButton(text='Профиль', callback_data='profile'))
+        keyboard.add(types.InlineKeyboardButton(text='Найти пассажира(по Иркутску)', callback_data='driver_path_menu'))
+        keyboard.add(types.InlineKeyboardButton(text='Мой профиль', callback_data='profile'))
     elif not u.is_driver and u.form is None:
         keyboard.add(types.InlineKeyboardButton(text='Регистрация (водитель)', callback_data='register1'))
 
@@ -113,6 +113,32 @@ def moder_seeUserForm(call, user_id, form_user_id: int):
     bot.send_photo(call.message.chat.id, u.form['car_photo'], caption=t, reply_markup=keyboard)
 
 
+def confirm_reg(call, user_id, other_user_id: int):
+    """
+    :param user_id: Тот, кто нажал на кнопку
+    :param other_user_id: Тот, с кем выполняются действия
+    """
+    User.getUser(other_user_id).setDriver(True)
+    bot.send_message(other_user_id, f'Поздравляем, {User.getUser(other_user_id).nickname}, вы полностью прошли '
+                                    f'регистрацию! Размещайте свои '
+                                    'заявки на подвоз во вкладке «Найти пассажиров», которая находится в главном '
+                                    'меню. Удачных поездок!')
+    bot.delete_message(call.message.chat.id, call.message.id)
+    bot.delete_message(call.message.chat.id, call.message.id - 1)
+
+
+def cancel_reg(call, user_id, other_user_id: int):
+    """
+    :param user_id: Тот, кто нажал на кнопку
+    :param other_user_id: Тот, с кем выполняются действия
+    """
+    User.getUser(other_user_id).form = None
+    bot.send_message(other_user_id, 'К сожалению вы не прошли регистрацию. Проверьте достоверность введённых вами '
+                                    'данных. Если есть дополнительные вопросы, то обращайтесь к главному '
+                                    'менеджеру @Polenok_Anton')
+    moder_regRequests(call, user_id)
+
+
 def delete_message(call, *args):
     bot.delete_message(call.message.chat.id, call.message.id)
 
@@ -126,7 +152,9 @@ def mainMenu(call: types.CallbackQuery, *args):
 
 def sendMainMenu(call, *args):
     """Не редактирование, а отправка"""
-    bot.send_photo(call.message.chat.id, open('images/main.jpg', 'rb'),
+    if 'message' in call.__dict__:
+        call = call.message
+    bot.send_photo(call.chat.id, open('images/main.jpg', 'rb'),
                    reply_markup=main_keyboard(call.from_user.id,
                                               call.from_user.username))
-    bot.delete_message(call.message.chat.id, call.message.id)
+    bot.delete_message(call.chat.id, call.id)

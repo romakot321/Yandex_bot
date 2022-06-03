@@ -8,6 +8,7 @@ class Bill:
     p2p = QiwiP2P(
         auth_key='eyJ2ZXJzaW9uIjoiUDJQIiwiZGF0YSI6eyJwYXlpbl9tZXJjaGFudF9zaXRlX3VpZCI6Im0wZ21ydy0wMCIsInVzZXJfaWQiOiI3OTAxNjMwNjkxMSIsInNlY3JldCI6IjhiOTRkNjM4ZDNiYjEwMWYxNWY3ZTVmYzdkNmFiYmZhMGFjYjY0ZTM2YmEzMmZiMTdjNzIyZTAzOGZhMTI0NmMifX0=', )
     handler = Handler()
+    BILL_PRICE = 20
 
     def __init__(self, id, to_username, price):
         '''

@@ -1,3 +1,4 @@
+import datetime
 import json
 from typing import Union
 from typing import Any
@@ -24,7 +25,16 @@ class User:
     handler = Handler()
 
     def __init__(self, user_id, nickname, is_driver=None, reviews_data: str = None,
-                 form: str = None):
+                 form: str = None, last_paid: str = None):
+        """
+
+        :param user_id:
+        :param nickname:
+        :param is_driver:
+        :param reviews_data:
+        :param form:
+        :param last_paid: Когда был оплачен доступ
+        """
         if not is_driver:
             is_driver = False
         self.user_id = int(user_id)
@@ -32,12 +42,18 @@ class User:
         self.is_driver = is_driver == 'True' if isinstance(is_driver, str) else is_driver
         self.reviews = []
         self.form = json.loads(form) if form and form != 'None' else None
+        self.last_paid: datetime.datetime = datetime.datetime.fromisoformat(last_paid) \
+            if last_paid and last_paid != 'None' else None
         if reviews_data and reviews_data != 'None':
             for r in reviews_data.split('$$$'):
                 self.reviews.append(Review.fromTextToObject(r))
 
     @staticmethod
     def getUserId(username):
+        if isinstance(username, str) and username.isdigit():
+            return int(username)
+        elif isinstance(username, int):
+            return username
         return User.handler.getUserId(username) if str(username) != 'None' else None
 
     @staticmethod
@@ -64,6 +80,9 @@ class User:
             if i.to_username == self.nickname:
                 if i.status is False:
                     return i
+        if (datetime.datetime.now() - self.last_paid).days >= 30:
+            Bill.add_bill(self.nickname, Bill.BILL_PRICE)
+            return True
         return False
 
     def getScore(self):
@@ -82,8 +101,13 @@ class User:
 Рейтинг: {self.getScore()}/5
             '''
         else:
-            s = f'Пользователь @{self.nickname} (Оценка: {self.getScore()}/5)'
+            s = f'Пользователь @{self.nickname}' if self.nickname else 'Пользователь'
         return s
+
+    def setDriver(self, val):
+        self.is_driver = val
+        if val:
+            self.last_paid = datetime.datetime.now()
 
     def __getstate__(self) -> dict:
         d = self.__dict__.copy()
@@ -91,6 +115,7 @@ class User:
         if not d['reviews_data']:
             d['reviews_data'] = None
         d.pop('reviews')
+        d['last_paid'] = self.last_paid.isoformat() if self.last_paid is not None else None
         return d
 
     def __setattr__(self, key, value):
