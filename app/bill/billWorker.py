@@ -8,5 +8,6 @@ def delete_bill(call, user_id, bill_id):
 
 
 def renew_bill(call, user_id, bill_id):
+    """Обновить просроченный счет"""
     Bill.get_bill(bill_id).renew()
     bot.delete_message(call.message.chat.id, call.message.id)
