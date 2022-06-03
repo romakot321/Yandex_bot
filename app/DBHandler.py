@@ -33,7 +33,8 @@ class Handler:
                                      DEFAULT (0),
                 reviews_data TEXT,
                 form         TEXT,
-                last_paid    VARCHAR
+                last_paid    VARCHAR,
+                requests_id  STRING
             );
             '''
         )
@@ -59,6 +60,22 @@ class Handler:
         )
         self.cur.executescript(
             '''
+                CREATE TABLE requests (
+                id                    PRIMARY KEY
+                                      UNIQUE
+                                      NOT NULL,
+                companion_id INT      NOT NULL,
+                from_point   VARCHAR  NOT NULL,
+                to_point     VARCHAR  NOT NULL,
+                start_time   DATETIME NOT NULL,
+                add_text     TEXT,
+                status         INT      NOT NULL,
+                responses_data TEXT
+            );
+            '''
+        )
+        self.cur.executescript(
+            '''
             CREATE TABLE bills (
                 id          INT     PRIMARY KEY
                                     UNIQUE
@@ -69,7 +86,7 @@ class Handler:
             '''
         )
 
-    def get_user(self, user_id):
+    def get_user(self, user_id) -> 'User':
         from app.user.u import User
         self.conn.commit()
         if isinstance(user_id, int) or isinstance(user_id, str) and user_id.isdigit():
@@ -118,7 +135,7 @@ class Handler:
             return self.doAction(self.update_user.__func__, (self, user_id, key, value))
 
     def get_path(self, path_id):
-        from app.path.p import Path, CompanionPath
+        from app.path.p import Path, Request
         try:
             p = self.cur.execute(f'SELECT * FROM paths WHERE id={path_id}').fetchall()
         except sqlite3.ProgrammingError:
@@ -128,7 +145,7 @@ class Handler:
             if data[10] == 'path':
                 return Path(*data)
             elif data[10] == 'companion_path':
-                return CompanionPath(data=data)
+                return Request(data=data)
 
     def add_path(self, path):
         s = "', '".join([str(v) for _, v in path.__getstate__().items()])
@@ -169,10 +186,44 @@ class Handler:
         try:
             p = self.cur.execute(f"DELETE FROM bills WHERE id='{id}'").fetchall()
         except sqlite3.ProgrammingError:
-            return self.doAction(self.get_path.__func__, (self, id))
+            return self.doAction(self.delete_bill.__func__, (self, id))
 
     def get_all_bills_ids(self, *args) -> list:
         try:
             return list(map(lambda i: i[0], self.cur.execute('SELECT id FROM bills').fetchall()))
         except sqlite3.ProgrammingError:
-            return self.doAction(self.get_all_paths_ids.__func__, (self, None))
+            return self.doAction(self.get_all_bills_ids.__func__, (self, None))
+
+    def get_request(self, id):
+        from app.path import Request
+        try:
+            r = self.cur.execute(f"SELECT * FROM requests WHERE id='{id}'").fetchall()
+        except sqlite3.ProgrammingError:
+            return self.doAction(self.get_request.__func__, (self, id))
+        if r:
+            return Request(*r[0])
+
+    def delete_request(self, id):
+        try:
+            p = self.cur.execute(f"DELETE FROM requests WHERE id='{id}'").fetchall()
+        except sqlite3.ProgrammingError:
+            return self.doAction(self.delete_request.__func__, (self, id))
+
+    def update_request(self, req_id, key, value):
+        try:
+            self.cur.execute(f"UPDATE requests SET {key}='{value}' WHERE id='{req_id}'")
+        except sqlite3.ProgrammingError:
+            return self.doAction(self.update_request.__func__, (self, req_id, key, value))
+
+    def get_all_requests_ids(self, *args) -> list:
+        try:
+            return list(map(lambda i: i[0], self.cur.execute('SELECT id FROM requests').fetchall()))
+        except sqlite3.ProgrammingError:
+            return self.doAction(self.get_all_requests_ids.__func__, (self, None))
+
+    def add_request(self, request):
+        s = "', '".join([str(v) for _, v in request.__getstate__().items()])
+        try:
+            self.cur.execute(f"INSERT INTO requests VALUES ('{s}')")
+        except sqlite3.ProgrammingError:
+            return self.doAction(self.add_request.__func__, (self, request))

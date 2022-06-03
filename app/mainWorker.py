@@ -16,6 +16,7 @@ def main_keyboard(user_id: int, nickname: str) -> types.InlineKeyboardMarkup:
     if u.is_driver:
         keyboard.add(types.InlineKeyboardButton(text='Найти пассажира(по Иркутску)', callback_data='driver_path_menu'))
         keyboard.add(types.InlineKeyboardButton(text='Мой профиль', callback_data='profile'))
+        keyboard.add(types.InlineKeyboardButton(text='Принятые заявки', callback_data='driver_requests'))
     elif not u.is_driver and u.form is None:
         keyboard.add(types.InlineKeyboardButton(text='Регистрация (водитель)', callback_data='register1'))
 

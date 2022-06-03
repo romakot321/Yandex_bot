@@ -2,7 +2,7 @@ from typing import Union
 
 from app import bot, locator, handler, mainWorker
 from app.user import userWorker, User
-from app.path import Path, CompanionPath
+from app.path import Path, Request, Response
 from app.bill import Bill
 
 import datetime
@@ -33,8 +33,8 @@ def moder_testPath(call, *args):
 def comp_path_menu(call, *args):
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(types.InlineKeyboardButton(text='Список созданных водителями маршрутов',
-                                            callback_data='find_path 0 path'))
-    keyboard.add(types.InlineKeyboardButton(text='Создать заявку', callback_data='new_comp_path'))
+                                            callback_data='find_path'))
+    keyboard.add(types.InlineKeyboardButton(text='Создать заявку', callback_data='new_request'))
     keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='mainMenu'))
     bot.edit_message_media(types.InputMediaPhoto(open('images/findPath.jpg', 'rb')),
                            call.message.chat.id, call.message.id,
@@ -44,8 +44,8 @@ def comp_path_menu(call, *args):
 def driver_path_menu(call, *args):
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(types.InlineKeyboardButton(text='Список созданных попутчиками заявок',
-                                            callback_data='find_path 0 companion_path'))
-    keyboard.add(types.InlineKeyboardButton(text='Создать заявку', callback_data='new_path'))
+                                            callback_data='find_request'))
+    keyboard.add(types.InlineKeyboardButton(text='Создать маршрут', callback_data='new_path'))
     keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='mainMenu'))
     bot.edit_message_media(types.InputMediaPhoto(open('images/findPath.jpg', 'rb')),
                            call.message.chat.id, call.message.id,
@@ -81,7 +81,7 @@ def check_validity(msg: str, step: str) -> str:
     return msg
 
 
-def new_comp_path(msg, user_id, data=None):
+def new_request(msg, user_id, data=None):
     if data is None and 'message' in msg.__dict__:
         if msg.from_user.username is None:
             bot.send_message(msg.message.chat.id, 'Пожалуйста, задайте имя пользователя в настройках вашего аккаунта, '
@@ -99,19 +99,19 @@ def new_comp_path(msg, user_id, data=None):
             data.append((step, check_validity(msg.text, step)))
         except notValidity as e:
             bot.send_message(msg.chat.id, e.args[0])
-            bot.register_next_step_handler(msg, new_comp_path, user_id, data)
+            bot.register_next_step_handler(msg, new_request, user_id, data)
             return
     if len(data) == len(path_create_steps):
-        return create_comp_path(msg, dict(data))
+        return create_request(msg, dict(data))
     step, text = path_create_steps[len(data)]
     bot.send_message(msg.chat.id, text)
-    bot.register_next_step_handler(msg, new_comp_path, user_id, data)
+    bot.register_next_step_handler(msg, new_request, user_id, data)
 
 
-def create_comp_path(msg, data: dict):
+def create_request(msg, data: dict):
     data['id'] = None
     data['companion_id'] = msg.from_user.id
-    CompanionPath.addPath(path=CompanionPath(**data))
+    Request.addRequest(req=Request(**data))
     bot.send_message(msg.chat.id, 'Заявка создана, ожидайте отклика одного из водителей.')
     mainWorker.sendMainMenu(msg)
 
@@ -163,7 +163,7 @@ def new_path3(msg, from_point, to_point=None):
             bot.send_message(msg.chat.id, 'Неверно введена конечная точка маршрута.')
             new_path2(msg, from_point)
         else:
-            bot.send_message(msg.chat.id, 'Введите стоимость проезда. Минимум 10 рублей.')
+            bot.send_message(msg.chat.id, 'Введите стоимость проезда')
             bot.register_next_step_handler(msg, new_path4, from_point, to_point)
     except geopy.exc.GeocoderUnavailable:
         bot.send_message(msg.chat.id, 'Неверно введена конечная точка маршрута.')
@@ -173,7 +173,7 @@ def new_path3(msg, from_point, to_point=None):
 def new_path4(msg, from_point, to_point, price=None):
     if price is None:
         price = msg.text
-    if isinstance(price, str) and not price.isdigit() or price.isdigit() and int(price) < 10:
+    if isinstance(price, str) and not price.isdigit():
         bot.send_message(msg.chat.id, 'Неверно введена стоимость проезда, попробуйте снова')
         new_path3(msg, from_point, to_point)
         return
@@ -237,13 +237,37 @@ def new_path7(msg, from_point, to_point, price, max_companions, add_text):
                                                          msg.from_user.username))
 
 
-def find_path(call, user_id, page=0, path_type='path'):
+def find_request(call, user_id, page=0):
+    keyboard = types.InlineKeyboardMarkup()
+    paths = Request.getAllRequestsId(paginition=True)
+    for req_id in paths[page]:  # TODO система поиска
+        req = Request.getRequest(req_id)
+        keyboard.add(types.InlineKeyboardButton(text=str(req),
+                                                callback_data=f'about_request {req_id}'))
+    keyboard.add(types.InlineKeyboardButton(text='В меню', callback_data=f'mainMenu'))
+    if page > 0:
+        if page + 1 < len(paths):
+            keyboard.row(
+                types.InlineKeyboardButton(text='Следующие', callback_data=f'find_request {page + 1}'),
+                types.InlineKeyboardButton(text='Назад', callback_data=f'find_request {page - 1}')
+            )
+        else:
+            keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'find_request {page - 1}'))
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.id, reply_markup=keyboard)
+    else:
+        if page + 1 < len(paths):
+            keyboard.add(
+                types.InlineKeyboardButton(text='Следующие', callback_data=f'find_request {page + 1}'))
+        bot.edit_message_media(types.InputMediaPhoto(open('images/findRequest.jpeg', 'rb')),
+                               call.message.chat.id, call.message.id,
+                               reply_markup=keyboard)
+
+
+def find_path(call, user_id, page=0):
     keyboard = types.InlineKeyboardMarkup()
     paths = Path.getAllPathsId(paginition=True)
     for path_id in paths[page]:  # TODO система поиска
         p = Path.getPath(path_id)
-        if not p.type == path_type:
-            continue
         if p.finish_time is None:
             keyboard.add(types.InlineKeyboardButton(text=str(p),
                                                     callback_data=f'about_path {path_id}'))
@@ -251,15 +275,15 @@ def find_path(call, user_id, page=0, path_type='path'):
     if page > 0:
         if page + 1 < len(paths):
             keyboard.row(
-                types.InlineKeyboardButton(text='Следующие', callback_data=f'find_path {page + 1} {path_type}'),
+                types.InlineKeyboardButton(text='Следующие', callback_data=f'find_path {page + 1}'),
                 types.InlineKeyboardButton(text='Назад', callback_data=f'find_path {page - 1}')
             )
         else:
-            keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'find_path {page - 1} {path_type}'))
+            keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'find_path {page - 1}'))
         bot.edit_message_reply_markup(call.message.chat.id, call.message.id, reply_markup=keyboard)
     else:
         if page + 1 < len(paths):
-            keyboard.add(types.InlineKeyboardButton(text='Следующие', callback_data=f'find_path {page + 1} {path_type}'))
+            keyboard.add(types.InlineKeyboardButton(text='Следующие', callback_data=f'find_path {page + 1}'))
         bot.edit_message_media(types.InputMediaPhoto(open('images/findPath.jpg', 'rb')),
                                call.message.chat.id, call.message.id,
                                reply_markup=keyboard)
@@ -292,6 +316,99 @@ def about_path(call, user_id, path_id, edit_msg=False):
     else:
         bot.send_photo(call.message.chat.id, User.getUser(p.driver_id).form['car_photo'],
                        caption=p.about(), reply_markup=keyboard)
+
+
+def about_request(call, user_id, req_id):
+    keyboard = types.InlineKeyboardMarkup()
+    req = Request.getRequest(req_id)
+    if call.from_user.id == req.companion_id and req.status == Request.STATUS_LISTED:
+        keyboard.add(types.InlineKeyboardButton(text='Посмотреть отклики', callback_data=f'responses {req_id}'))
+        keyboard.add(types.InlineKeyboardButton(text='Отозвать заявку', callback_data=f'delete_request {req_id}'))
+    elif req.status == Request.STATUS_LISTED:
+        keyboard.add(types.InlineKeyboardButton(text='Откликнуться', callback_data=f'respond {req_id}'))
+    elif req.status == Request.STATUS_ACCEPTED \
+            and req.start_time.timestamp() <= datetime.datetime.now(pytz.timezone('Europe/Moscow')).timestamp():
+        user = User.getUser(user_id)
+        if any([r.id == req.id for r in user.requests_id]):
+            keyboard.add(types.InlineKeyboardButton(text='Завершить заявку', callback_data=f'finish_request {req_id}'))
+    keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'delete_message'))
+    bot.send_message(call.message.chat.id, req.about(), reply_markup=keyboard)
+
+
+def finish_request(call, user_id, req_id):
+    req = Request.getRequest(req_id)
+    if not req.status == Request.STATUS_ACCEPTED:
+        return
+    userWorker.add_review1(call, req.companion_id, user_id)
+    mainWorker.delete_message(call)
+
+
+def responses(call, user_id, req_id):
+    keyboard = types.InlineKeyboardMarkup()
+    req = Request.getRequest(req_id)
+    for num, resp in enumerate(req.responses):
+        keyboard.add(types.InlineKeyboardButton(text=str(resp), callback_data=f'about_response {req_id} {num}'))
+    keyboard.add(types.InlineKeyboardButton(text='В меню', callback_data=f'mainMenu'))
+    bot.edit_message_reply_markup(call.message.chat.id, call.message.id, reply_markup=keyboard)
+
+
+def about_response(call, user_id, req_id, resp_id):
+    req = Request.getRequest(req_id)
+    resp = req.responses[resp_id]
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(types.InlineKeyboardButton(text='Принять', callback_data=f'confirm_response {req_id} {resp_id}'))
+    keyboard.add(types.InlineKeyboardButton(text='Отказать', callback_data=f'delete_response {req_id} {resp_id}'))
+    keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'delete_message'))
+    bot.send_message(call.message.chat.id, resp.about(), reply_markup=keyboard)
+
+
+def confirm_response(call, user_id, req_id, resp_id):
+    req = Request.getRequest(req_id)
+    resp = req.responses[resp_id]
+    driver = User.getUser(User.getUserId(resp.driver_username))
+    bot.send_message(User.getUserId(resp.driver_username), f'Ваш отклик на заявку {req} приняли. Удачного пути!')
+    req.status = Request.STATUS_ACCEPTED
+    driver.addRequest(req.id)
+
+
+def delete_request(call, user_id, req_id):
+    Request.deleteRequest(req_id)
+
+
+def respond(call, user_id, req_id):
+    for resp in Request.getRequest(req_id).responses:
+        if resp.driver_username == User.getUser(user_id).nickname:
+            bot.send_message(call.message.chat.id, 'Вы уже оставили отклик на эту заявку')
+            return
+    bot.send_message(call.message.chat.id, 'Введите стоимость проезда')
+    bot.register_next_step_handler(call.message, respond2, user_id, req_id)
+
+
+def respond2(msg, user_id, req_id):
+    if isinstance(msg.text, str) and not msg.text.isdigit():
+        bot.send_message(msg.chat.id, 'Неверно введена стоимость проезда, попробуйте снова')
+        bot.register_next_step_handler(msg, respond2, user_id, req_id)
+        return
+    bot.send_message(msg.chat.id, 'Введите примечание к заказу("." чтобы оставить пустым). Например, допустимый '
+                                  'багаж, или присутствие детского кресла.')
+    bot.register_next_step_handler(msg, respond3, user_id, req_id, int(msg.text))
+
+
+def respond3(msg, user_id, req_id, price):
+    add_text = msg.text if msg.text != '.' else ''
+    Request.getRequest(req_id).addResponse(Response(req_id, msg.from_user.username, price, add_text))
+    bot.send_message(msg.chat.id, 'Отклик оставлен, ожидайте')
+
+
+def driver_requests(call, user_id):
+    user = User.getUser(user_id)
+    keyboard = types.InlineKeyboardMarkup()
+    for req_id in user.requests_id:
+        keyboard.add(types.InlineKeyboardButton(text=str(Request.getRequest(req_id)),
+                                                callback_data=f'about_request {req_id}'))
+    bot.edit_message_media(types.InputMediaPhoto(open('images/findRequest.jpg', 'rb')),
+                           call.message.chat.id, call.message.id,
+                           reply_markup=keyboard)
 
 
 def start_path(call, user_id, path_id):
