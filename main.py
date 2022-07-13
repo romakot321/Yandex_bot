@@ -5,6 +5,7 @@ from app.bill import billWorker
 
 from telebot import types
 import inspect
+import logging
 
 
 @bot.message_handler(commands=['start'])
@@ -19,6 +20,7 @@ def start_message(message):
 def main(call: types.CallbackQuery):
     """Обработка нажатий кнопки и вызов нужной функции"""
     print(call.from_user.username, call.data)
+    logging.info(f'{call.from_user.username} {call.data}')
     args = [call.data]
     if ' ' in args[0]:  # Создание аргументов для функции
         args = args[0].split()
@@ -28,7 +30,10 @@ def main(call: types.CallbackQuery):
     for worker in (mainWorker, pathWorker, userWorker, billWorker):
         for name, f in inspect.getmembers(worker, predicate=inspect.isfunction):  # Перебор функций
             if name == args[0]:
-                f(call, *args[1:])
+                try:
+                    f(call, *args[1:])
+                except Exception as err:
+                    logging.error(err, exc_info=True)
 
 
 if __name__ == '__main__':

@@ -50,8 +50,9 @@ class User:
                 self.reviews.append(Review.fromTextToObject(r))
         if isinstance(requests_id, str) and requests_id != 'None':
             for r in requests_id.split(','):
-                print((requests_id, r))
                 self.requests_id.append(int(r))
+        elif isinstance(requests_id, int):
+            self.requests_id.append(requests_id)
 
     @staticmethod
     def getUserId(username):
@@ -80,6 +81,10 @@ class User:
 
     def addRequest(self, request_id):
         self.requests_id.append(request_id)
+        User.handler.update_user(self.user_id, 'requests_id', self.__getstate__()['requests_id'])
+
+    def deleteRequest(self, request_id):
+        self.requests_id.remove(request_id)
         User.handler.update_user(self.user_id, 'requests_id', self.__getstate__()['requests_id'])
 
     def checkBills(self) -> Union[bool, Any]:
@@ -120,11 +125,10 @@ class User:
 
     def __getstate__(self) -> dict:
         d = self.__dict__.copy()
-        d['reviews_data'] = ','.join([r.textForm() for r in self.reviews])
+        d['reviews_data'] = '$$$'.join([r.textForm() for r in self.reviews])
         if not d['reviews_data']:
             d['reviews_data'] = None
         d['requests_id'] = ','.join(map(str, self.requests_id))
-        print('REQ', d['requests_id'])
         if not d['requests_id']:
             d['requests_id'] = None
         d.pop('reviews')

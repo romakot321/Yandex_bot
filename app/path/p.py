@@ -115,8 +115,8 @@ class Path:
 
 
 class Response:
-    def __init__(self, requets_id, driver_username, price, add_text):
-        self.request_id = requets_id
+    def __init__(self, request_id, driver_username, price, add_text):
+        self.request_id = request_id
         self.driver_username = driver_username
         self.price = price
         self.add_text = add_text
@@ -147,7 +147,7 @@ class Request:
 
     def __init__(self, id, companion_id, from_point, to_point, start_time, add_text, status=None, responses_data=None):
         if id is None:
-            id = len(Path.handler.get_all_paths_ids()) + 1
+            id = len(Path.handler.get_all_requests_ids()) + 1
         self.id = int(id)
         self.companion_id = companion_id
         self.from_point = from_point
@@ -159,7 +159,7 @@ class Request:
                 if start_time and start_time != 'None' else None
         self.add_text = add_text
         self.responses: List['Response'] = []
-        self.status = self.STATUS_LISTED if status is None else status
+        self.status = self.STATUS_LISTED if status is None or status == 'None' else status
         if responses_data and responses_data != 'None':
             for r in responses_data.split('%%%'):
                 self.responses.append(Response.fromTextToObject(r))
@@ -189,7 +189,7 @@ class Request:
 
     def addResponse(self, response: 'Response'):
         self.responses.append(response)
-        Path.handler.update_request(self.id, 'responses', self.__getstate__()['responses'])
+        Path.handler.update_request(self.id, 'responses_data', self.__getstate__()['responses_data'])
 
     def about(self):
         from app.user.u import User
@@ -210,3 +210,8 @@ class Request:
             d['responses_data'] = None
         d.pop('responses')
         return d
+
+    def __setattr__(self, key, value):
+        self.__dict__[key] = value
+        if key == 'status' and value == self.STATUS_ACCEPTED:
+            Path.handler.update_request(self.id, key, value)

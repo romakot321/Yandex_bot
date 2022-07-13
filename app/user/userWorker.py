@@ -93,17 +93,17 @@ def add_review1(call, user_id, to_user):
 
 def add_review2(msg, user_id, to_user):
     if '$' in msg.text:
-        bot.send_message(msg.chat.id, 'Нельзя использовать символ "$" в отзыве. Отзыв оставлен пустым')
-        msg.text = '.'
+        bot.send_message(msg.chat.id, 'Нельзя использовать символ "$" в отзыве.')
+        add_review1(None, user_id, to_user)
     bot.send_message(msg.chat.id, f'Введите оценку от 1 до 5(целое число) для пользователя @{to_user}.')
     bot.register_next_step_handler(msg, add_review3, user_id, to_user, msg.text)
 
 
-def add_review3(msg, user_id, to_user_id, text):
+def add_review3(msg, user_id, to_user, text):
     if isinstance(msg.text, str) and msg.text.isdigit() and int(msg.text) in range(1, 6):
         if text.strip() == '.':
             text = ''
-        User.getUser(to_user_id).addReview(Review(int(msg.text), text))
+        User.getUser(User.getUserId(to_user)).addReview(Review(int(msg.text), text))
         bot.send_message(msg.chat.id, 'Отзыв оставлен.')
     else:
         bot.send_message(msg.chat.id, 'Неверно введена оценка')
