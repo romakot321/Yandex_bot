@@ -1,3 +1,4 @@
+import os
 from typing import Union
 
 from app import mainWorker, bot
@@ -8,7 +9,7 @@ from telebot import types
 import datetime
 
 register_steps = [
-    ('full_name', 'Введите ФИО. Кстати, наш сервис будет брать с вас комиссию 10% с каждого выполненного заказа.'),
+    ('full_name', 'Введите ФИО. Кстати, наш сервис небесплатен, подписка стоит 20руб/месяц.'),
     ('birthday', 'Введите дату рождения в формате ДД.ММ.ГГГГ(пример: 01.05.1968)'),
     ('driver_license', "Введите данные водительского удостоверения"),
     ('car_info', "Введите полное название и цвет авто (пример: белый Kia Rio 2019 год)"),
@@ -31,7 +32,7 @@ def check_validity(msg: Union[str, types.Message], step: str) -> Union[str, type
             day, month, year = msg
             if day.isdigit() and month.isdigit() and year.isdigit():
                 if int(day) in range(1, 32) and int(month) in range(1, 13) \
-                        and int(year) < datetime.datetime.now().year:
+                        and datetime.datetime.now().year - 100 < int(year) < datetime.datetime.now().year:
                     return '.'.join(msg)
         raise notValidity('Неверно введена дата рождения. Попробуйте снова')
     elif step == 'car_number':
@@ -77,7 +78,10 @@ def register1(message, user_id, data=None):
 
 
 def register2(msg, user_id, data: dict):
-    bot.send_message(msg.chat.id, 'Заявка на регистрацию подана на рассмотрение, ожидайте.')
+    bot.send_message(msg.chat.id, 'Заявка на регистрацию подана на рассмотрение, ожидайте. Регистрируясь, '
+                                  'вы принимаете политику обработки персональных данных')
+    with open(os.path.join('images', 'data_info_comp.docx')) as f:
+        bot.send_document(msg.chat.id, f)
     User.getUser(user_id).is_driver = False
     User.getUser(user_id).form = data
 

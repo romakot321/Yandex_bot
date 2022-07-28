@@ -133,7 +133,7 @@ def new_path(msg, user_id):
         bot.register_next_step_handler(msg, new_path2)
     else:
         bot.send_message(msg.chat.id, 'Оплатите все счета для продолжения. При возникновении проблем обращайтесь '
-                                      f'в модерацию \n\n{b.text()}')
+                                      f'в модерацию \n\n{u.checkBills().text()}')
 
 
 def new_path2(msg, from_point=None):
@@ -310,7 +310,7 @@ def about_path(call, user_id, path_id, edit_msg=False):
         if int(call.from_user.id) not in p.companions and len(p.companions) < p.max_companions:
             keyboard.add(types.InlineKeyboardButton(text='Присоединиться',
                                                     callback_data=f'join_to_path {p.id}'))
-        else:
+        elif int(call.from_user.id) in p.companions:
             keyboard.add(types.InlineKeyboardButton(text='Выйти',
                                                     callback_data=f'leave_path {p.id}'))
     keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'delete_message'))
@@ -328,7 +328,7 @@ def about_request(call, user_id, req_id):
     if call.from_user.id == req.companion_id and req.status == Request.STATUS_LISTED:
         keyboard.add(types.InlineKeyboardButton(text='Посмотреть отклики', callback_data=f'responses {req_id}'))
         keyboard.add(types.InlineKeyboardButton(text='Отозвать заявку', callback_data=f'delete_request {req_id}'))
-        keyboard.add(types.InlineKeyboardButton(text='Откликнуться', callback_data=f'respond {req_id}'))
+        # keyboard.add(types.InlineKeyboardButton(text='Откликнуться', callback_data=f'respond {req_id}'))
     elif req.status == Request.STATUS_LISTED:
         keyboard.add(types.InlineKeyboardButton(text='Откликнуться', callback_data=f'respond {req_id}'))
     elif req.status == Request.STATUS_ACCEPTED \
@@ -405,8 +405,12 @@ def respond2(msg, user_id, req_id):
 
 def respond3(msg, user_id, req_id, price):
     add_text = msg.text if msg.text != '.' else ''
-    Request.getRequest(req_id).addResponse(Response(req_id, msg.from_user.username, price, add_text))
+    req = Request.getRequest(req_id)
+    req.addResponse(Response(req_id, msg.from_user.username, price, add_text))
+    comp_id = req.companion_id
     bot.send_message(msg.chat.id, 'Отклик оставлен, ожидайте')
+    mainWorker.sendMainMenu(msg)
+    bot.send_message(comp_id, f'На ваш запрос {req.from_point}-{req.to_point} откликнулся @{msg.from_user.username}')
 
 
 def driver_requests(call, user_id):

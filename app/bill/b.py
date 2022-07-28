@@ -59,7 +59,7 @@ class Bill:
                                          expiration=datetime.datetime.now() + datetime.timedelta(days=1))
 
     def __getstate__(self) -> dict:
-        d = self.__dict__.copy()
-        d = {'id': self.bill_object.bill_id} | d
+        d = {'id': self.bill_object.bill_id}
+        d.update(self.__dict__.copy())
         d.pop('bill_object')
         return d
