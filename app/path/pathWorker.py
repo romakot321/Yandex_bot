@@ -25,9 +25,12 @@ class notValidity(Exception):
 
 
 def moder_testPath(call, *args):
-    Path.addPath(None, call.from_user.username, None, 50,
-                 'ТЕСТ', 'ТЕСТ', 10, 'ТЕСТТЕСТТЕСТ', datetime.datetime.now())
-    mainWorker.mainMenu(call)
+    if User.getUser(call.from_user.id).is_driver:
+        Path.addPath(None, call.from_user.username, None, 50,
+                     'ТЕСТ', 'ТЕСТ', 10, 'ТЕСТТЕСТТЕСТ', datetime.datetime.now())
+        mainWorker.mainMenu(call)
+    else:
+        bot.send_message(call.message.chat.id, "Вы не водитель, зарегистрируйтесь")
 
 
 def comp_path_menu(call, *args):
@@ -121,6 +124,9 @@ def create_request(msg, data: dict):
 
 def new_path(msg, user_id):
     u = User.getUser(user_id)
+    if any([Path.getPath(p).finish_time is None for p in Path.getAllPathsId() if Path.getPath(p).driver_id == user_id]):
+        bot.send_message(msg.chat.id, 'У вас есть неоконченные маршруты. Сначала завершите их.')
+        return
     if 'message' in msg.__dict__:
         msg = msg.message
     b = u.checkBills()
@@ -302,9 +308,10 @@ def about_path(call, user_id, path_id, edit_msg=False):
         if p.start_time is None:
             keyboard.add(types.InlineKeyboardButton(text='Начать поездку',
                                                     callback_data=f'start_path {p.id}'))
-        elif p.finish_time is None \
-                and p.start_time.timestamp() <= datetime.datetime.now(pytz.timezone('Europe/Moscow')).timestamp():
-            keyboard.add(types.InlineKeyboardButton(text='Окончить поездку',
+        elif p.finish_time is None:
+            keyboard.add(types.InlineKeyboardButton(text="Отменить поездку", callback_data=f'cancel_path {p.id}'))
+            if p.start_time.timestamp() <= datetime.datetime.now(pytz.timezone('Europe/Moscow')).timestamp():
+                keyboard.add(types.InlineKeyboardButton(text='Окончить поездку',
                                                     callback_data=f'finish_path {p.id}'))
     elif p.finish_time is None:
         if int(call.from_user.id) not in p.companions and len(p.companions) < p.max_companions:
@@ -425,11 +432,20 @@ def driver_requests(call, user_id):
                            reply_markup=keyboard)
 
 
+def cancel_path(call, user_id, path_id):
+    p = Path.getPath(path_id)
+    if p.finish_time is None:
+        [(p.removeCompanion(c), bot.send_message(c, f'Поездка {str(p)} отменена')) for c in p.companions]
+        p.finish_time = datetime.datetime.now()
+        about_path(call, user_id, path_id, edit_msg=True)
+    else:
+        bot.send_message(call.from_user.id, 'Эта поездка уже окончена')
+
+
 def start_path(call, user_id, path_id):
     p = Path.getPath(path_id)
     if not any([Path.getPath(i).start_time is not None and Path.getPath(i).finish_time is None for i in
-                handler.get_all_paths_ids()
-                if Path.getPath(i).driver_username == p.driver_username]):
+                handler.get_all_paths_ids() if Path.getPath(i).driver_username == p.driver_username]):  # If hasnt started paths
         p.start_time = datetime.datetime.now()
         # bot.send_message(call.message.chat.id, f'Начало поездки - {p.start_time}')
         for c in p.companions:

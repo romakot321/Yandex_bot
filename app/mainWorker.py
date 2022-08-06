@@ -11,6 +11,8 @@ def main_keyboard(user_id: int, nickname: str) -> types.InlineKeyboardMarkup:
     u = User.getUser(user_id)
     if u is None:
         u = User.newUser(user_id, nickname)
+    elif u.nickname != nickname:
+        u.nickname = nickname
 
     keyboard.add(types.InlineKeyboardButton(text='Найти машину(по Иркутску)', callback_data='comp_path_menu'))
     if u.is_driver:
@@ -31,19 +33,17 @@ def about(call, *args):
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='delete_message'))
     bot.send_message(call.message.chat.id,
-                     'Наша компания была основана (число) Поленок Антоном и Коваль Романом. Поле’Ок '
-                     'ЯПопутчик предоставляет услуги перевозки груза и пассажиров в пределах вашего '
-                     'населённого пункта (района, города). Благодаря нашему сервису люди могут сэкономить '
-                     'значительную часть средств. А благодаря системе регистрации с помощью водительского '
-                     'удостоверения и данных об автомобиле вы точно не будете беспокоиться о сохранности '
-                     'своей жизни и вещей во время поездки. Наш девиз — «Наш клиент — компании элемент!»',
+                     '''Данное коммерческое предприятие было основано 7 марта 2022 года в городе Иркутск (Россия).
+Благодаря услугам сервиса «ЯПопутчик» люди, проживающие в Иркутске и его окрестностях имеют возможность сэкономить часть средств на поездках с попутчиками (водители могут заработать деньги на бензин, а пассажиры получат дешёвую, по сравнению с тарифами такси, поездку).
+                     
+Все права на коммерческое предприятие «ЯПопутчик» принадлежат Поленок Антону Дмитриевичу (ИНН: 383406776110)''',
                      reply_markup=keyboard)
 
 
 def question(call, *args):
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='delete_message'))
-    bot.send_message(call.message.chat.id, 'По всем вопросам обращайтесь к @Polenok_Anton',
+    bot.send_message(call.message.chat.id, 'По всем вопросам обращайтесь к @Anton_Polenok',
                      reply_markup=keyboard)
 
 
@@ -111,7 +111,6 @@ def moder_seeUserForm(call, user_id, form_user_id: int):
 Водитель @{u.nickname}
 Полное имя: {u.form['full_name']}
 Дата рождения: {u.form['birthday']}
-Водительское удостоверение: {u.form['driver_license']}
 Автомобиль: {u.form['car_info']}
 Номер авто: {u.form['car_number']}
 Рейтинг: {u.getScore()}/5
@@ -141,7 +140,7 @@ def cancel_reg(call, user_id, other_user_id: int):
     User.getUser(other_user_id).form = None
     bot.send_message(other_user_id, 'К сожалению вы не прошли регистрацию. Проверьте достоверность введённых вами '
                                     'данных. Если есть дополнительные вопросы, то обращайтесь к главному '
-                                    'менеджеру @Polenok_Anton')
+                                    'менеджеру @Anton_Polenok')
     moder_regRequests(call, user_id)
 
 
@@ -156,11 +155,11 @@ def mainMenu(call: types.CallbackQuery, *args):
                                                       call.from_user.username))
 
 
-def sendMainMenu(call, *args):
+def sendMainMenu(msg, *args):
     """Не редактирование, а отправка"""
-    if 'message' in call.__dict__:
-        call = call.message
-    bot.send_photo(call.chat.id, open('images/main.jpg', 'rb'),
-                   reply_markup=main_keyboard(call.from_user.id,
-                                              call.from_user.username))
-    bot.delete_message(call.chat.id, call.id)
+    if 'message' in msg.__dict__:
+        msg = msg.message
+    bot.send_photo(msg.chat.id, open('images/main.jpg', 'rb'),
+                   reply_markup=main_keyboard(msg.from_user.id,
+                                              msg.from_user.username))
+    bot.delete_message(msg.chat.id, msg.id)

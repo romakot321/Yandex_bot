@@ -9,13 +9,14 @@ from telebot import types
 import datetime
 
 register_steps = [
-    ('full_name', 'Введите ФИО. Кстати, наш сервис небесплатен, подписка стоит 20руб/месяц.'),
+    ('full_name', 'Введите ФИО. Кстати, наш сервис небесплатен, подписка стоит 20руб/месяц. Но сейчас действует акция - первый месяц бесплатно!\nДля отмены введите "отмена"'),
     ('birthday', 'Введите дату рождения в формате ДД.ММ.ГГГГ(пример: 01.05.1968)'),
-    ('driver_license', "Введите данные водительского удостоверения"),
+#    ('driver_license', "Введите данные водительского удостоверения"),
     ('car_info', "Введите полное название и цвет авто (пример: белый Kia Rio 2019 год)"),
     ('car_number', "Введите номерной знак автомобиля (пример: М123ЯУ138)"),
     ('car_photo', 'Отправьте фотографию автомобиля.')
 ]
+
 
 
 class notValidity(Exception):
@@ -36,7 +37,9 @@ def check_validity(msg: Union[str, types.Message], step: str) -> Union[str, type
                     return '.'.join(msg)
         raise notValidity('Неверно введена дата рождения. Попробуйте снова')
     elif step == 'car_number':
-        if 7 < len(msg) <= 9:
+        letters = 'АВЕКМНОРСТУХ'
+        nums = '1234567890'
+        if 7 < len(msg) <= 9 and any([i in msg for i in nums]) and any([i.lower() in msg.lower() for i in letters]):
             return msg
         raise notValidity('Неверно введен номер автомобиля. Попробуйте снова')
     elif step == 'car_photo':
@@ -58,6 +61,11 @@ def register1(message, user_id, data=None):
             bot.send_photo(message.chat.id, open('images/registration.jpg', 'rb'))
             data = []
         else:
+            with open('msgs.log', 'a') as f:
+                f.write(f"{datetime.datetime.now().isoformat()}\t{message.from_user.username} {message.text}\n")
+            if message.text and message.text.lower() == 'отмена':
+                mainWorker.sendMainMenu(message, user_id)
+                return
             step = register_steps[len(data)][0]
             try:
                 if step == 'car_photo':
@@ -80,7 +88,7 @@ def register1(message, user_id, data=None):
 def register2(msg, user_id, data: dict):
     bot.send_message(msg.chat.id, 'Заявка на регистрацию подана на рассмотрение, ожидайте. Регистрируясь, '
                                   'вы принимаете политику обработки персональных данных')
-    with open(os.path.join('images', 'data_info_comp.docx')) as f:
+    with open(os.path.join('images', 'data_info_comp.docx'), 'rb') as f:
         bot.send_document(msg.chat.id, f)
     User.getUser(user_id).is_driver = False
     User.getUser(user_id).form = data
@@ -123,7 +131,6 @@ def profile(call, user_id):
 Водитель @{u.nickname}
 Полное имя: {u.form['full_name']}
 Дата рождения: {u.form['birthday']}
-Водительское удостоверение: {u.form['driver_license']}
 Автомобиль: {u.form['car_info']}
 Номер авто: {u.form['car_number']}
 Рейтинг: {u.getScore()}/5
@@ -151,11 +158,14 @@ def edit_profile2(message, user_id, data=None):
     else:
         step = register_steps[len(data)][0]
         try:
-            if message.text == '.':
+            if message.text and message.text == '.':
                 data.append((step, User.getUser(user_id).form[step]))
             elif register_steps[len(data)][0] == 'car_photo':
                 data.append((step, check_validity(message, step).photo[-1].file_id))
             else:
+                if message.text.lower() == 'отмена':
+                    mainWorker.sendMainMenu(message, user_id)
+                    return
                 data.append((register_steps[len(data)][0], check_validity(message.text, step)))
         except notValidity as e:
             bot.send_message(message.chat.id, e.args[0])
