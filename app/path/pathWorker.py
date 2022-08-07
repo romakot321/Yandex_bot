@@ -15,13 +15,25 @@ path_create_steps = [
                    'чтобы бот вас понял. Например, "Иркутск, Партизанская 1"'
                    'Введите "отмена" для отмены'),
     ("to_point", 'Введите адрес, в который вам необходимо попасть.'),
-    ('add_text', 'Введите примечание к тексту("." чтобы оставить пустым)'),
+    ('add_text', 'Введите примечание к тексту("." без кавычек чтобы оставить пустым)'),
     ('start_time', "Введите время, когда вы будете находится на начальной точке в формате ЧЧ:ММ по московскому времени"),
 ]
 
 
 class notValidity(Exception):
     pass
+
+
+def _check_paths_time():
+    for pid in handler.get_all_paths_ids():
+        p = Path.getPath(pid)
+        if p.finish_time is None:
+            if (datetime.datetime.now() - p.start_time).total_seconds() > p.TIME_FOR_DELETE:
+                p.cancel()
+                bot.send_message(p.driver_id, f'Маршрут {str(p)} был отменен из-за истечения срока завершения')
+            if (datetime.datetime.now() - p.start_time).total_seconds() > p.TIME_FOR_NOTIFY_DELETE:
+                bot.send_message(p.driver_id, 'Пожалуйста, окончите или отмените маршрут, иначе через полтора часа '
+                                              'маршрут будет отменен')
 
 
 def moder_testPath(call, *args):
@@ -435,8 +447,7 @@ def driver_requests(call, user_id):
 def cancel_path(call, user_id, path_id):
     p = Path.getPath(path_id)
     if p.finish_time is None:
-        [(p.removeCompanion(c), bot.send_message(c, f'Поездка {str(p)} отменена')) for c in p.companions]
-        p.finish_time = datetime.datetime.now()
+        p.cancel()
         about_path(call, user_id, path_id, edit_msg=True)
     else:
         bot.send_message(call.from_user.id, 'Эта поездка уже окончена')

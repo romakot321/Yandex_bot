@@ -2,11 +2,14 @@ import datetime
 from typing import List, Union
 
 from app.DBHandler import Handler
+from app import bot
 
 
 class Path:
     handler = Handler()
     PATHS_PER_PAGE = 10
+    TIME_FOR_NOTIFY_DELETE = 1800
+    TIME_FOR_DELETE = 7200
 
     def __init__(self, id: int, driver_username: str, companions: Union[list, str], max_companions: int,
                  from_point: str, to_point: str, price: int, add_text: str = None,
@@ -92,6 +95,10 @@ class Path:
         if self.finish_time is not None:
             s += '\n' + f'Время окончания: {self.finish_time.isoformat(sep=" ", timespec="minutes")}'
         return s
+
+    def cancel(self):
+        [(self.removeCompanion(c), bot.send_message(c, f'Поездка {str(self)} отменена')) for c in self.companions]
+        self.finish_time = datetime.datetime.now()
 
     def __getstate__(self):
         d = self.__dict__.copy()

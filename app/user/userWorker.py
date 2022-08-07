@@ -92,6 +92,10 @@ def register2(msg, user_id, data: dict):
         bot.send_document(msg.chat.id, f)
     User.getUser(user_id).is_driver = False
     User.getUser(user_id).form = data
+    if user_id in User.getModersId():
+        return
+    for moder in User.getModersId():
+        bot.send_message(moder, 'Создана новая заявка на регистрацию')
 
 
 def add_review1(call, user_id, to_user):
