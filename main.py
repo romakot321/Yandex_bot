@@ -1,6 +1,6 @@
 from app import bot, mainWorker
 from app.path import pathWorker
-from app.user import userWorker
+from app.user import userWorker, User
 from app.bill import billWorker
 
 from telebot import types
@@ -45,6 +45,8 @@ def main(call: types.CallbackQuery):
         if args[1].isdigit():
             args = [args[0], int(args[1]), *map(lambda i: int(i) if i.isdigit() else i, args[2:])]  # Получение аргументов из call.data
     args.insert(1, call.from_user.id)
+    if args[0].startswith('moder_') and call.from_user.id not in User.getModersId():
+        return
     for worker in (mainWorker, pathWorker, userWorker, billWorker):
         for name, f in inspect.getmembers(worker, predicate=inspect.isfunction):  # Перебор функций
             if name == args[0]:

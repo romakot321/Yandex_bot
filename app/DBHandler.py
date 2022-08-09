@@ -160,8 +160,11 @@ class Handler:
         except sqlite3.ProgrammingError:
             return self.doAction(self.update_path.__func__, (self, path_id, key, value))
 
-    def get_all_paths_ids(self, *args) -> list:
+    def get_all_paths_ids(self, *args, finished=True) -> list:
         try:
+            if not finished:
+                return list(filter(lambda i: str(i[1]) == 'None',
+                                   self.cur.execute('SELECT id, finish_time FROM paths').fetchall()))
             return list(map(lambda i: i[0], self.cur.execute('SELECT id FROM paths').fetchall()))
         except sqlite3.ProgrammingError:
             return self.doAction(self.get_all_paths_ids.__func__, (self, None))

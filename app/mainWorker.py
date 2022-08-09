@@ -54,6 +54,7 @@ def moder_menu(call, user_id):
         keyboard.add(types.InlineKeyboardButton(text='Заявки', callback_data='moder_regRequests'))
         keyboard.add(types.InlineKeyboardButton(text='Создать тестовый маршрут', callback_data='moder_testPath'))
         keyboard.add(types.InlineKeyboardButton(text='Список открытых счетов', callback_data='moder_openBills'))
+        keyboard.add(types.InlineKeyboardButton(text='Список открытых маршрутов', callback_data='moder_pathslist'))
         keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='mainMenu'))
         bot.edit_message_media(types.InputMediaPhoto(open('images/moderMenu.jpg', 'rb')),
                                call.message.chat.id, call.message.id,

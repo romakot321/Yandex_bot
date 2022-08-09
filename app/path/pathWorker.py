@@ -36,6 +36,41 @@ def _check_paths_time():
                                               'маршрут будет отменен')
 
 
+def moder_pathslist(call, user_id, page=0):
+    keyboard = types.InlineKeyboardMarkup()
+    paths = Path.getAllPathsId(True, True)
+    for pid in paths[page]:
+        p = Path.getPath(pid)
+        keyboard.add(types.InlineKeyboardButton(text=str(p), callback_data=f'moder_about_path {pid}'))
+    if page > 0:
+        if page + 1 < len(paths):
+            keyboard.row(
+                types.InlineKeyboardButton(text='Следующие', callback_data=f'moder_pathslist {page + 1}'),
+                types.InlineKeyboardButton(text='Назад', callback_data=f'moder_pathslist {page - 1}')
+            )
+        else:
+            keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'moder_pathslist {page - 1}'))
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.id, reply_markup=keyboard)
+    else:
+        if page + 1 < len(paths):
+            keyboard.add(types.InlineKeyboardButton(text='Следующие', callback_data=f'moder_pathslist {page + 1}'))
+        bot.edit_message_media(types.InputMediaPhoto(open('images/moderMenu.jpg', 'rb')),
+                               call.message.chat.id, call.message.id,
+                               reply_markup=keyboard)
+
+
+def moder_about_path(call, user_id, path_id):
+    keyboard = types.InlineKeyboardMarkup()
+    p = Path.getPath(path_id)
+    if p:
+        keyboard.add(types.InlineKeyboardButton(text="Отменить поездку", callback_data=f'cancel_path {p.id}'))
+        keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data=f'delete_message'))
+        bot.send_photo(call.message.chat.id, User.getUser(p.driver_id).form['car_photo'],
+                       caption=p.about(), reply_markup=keyboard)
+    else:
+        bot.send_message(call.message.chat.id, 'Маршрута не существует или он уже отменён.')
+
+
 def moder_testPath(call, *args):
     if User.getUser(call.from_user.id).is_driver:
         Path.addPath(None, call.from_user.username, None, 50,
@@ -141,17 +176,17 @@ def new_path(msg, user_id):
         return
     if 'message' in msg.__dict__:
         msg = msg.message
-    b = u.checkBills()
-    if not b:
-        text = 'Введите начальную точку маршрута. Указывайте адрес как можно точнее, чтобы бот вас понял. ' \
-               'Например, "Иркутск, Партизанская 1"' \
-               'Введите "отмена" для отмены'
-        bot.delete_message(msg.chat.id, msg.id)
-        bot.send_message(msg.chat.id, text)
-        bot.register_next_step_handler(msg, new_path2)
-    else:
-        bot.send_message(msg.chat.id, 'Оплатите все счета для продолжения. При возникновении проблем обращайтесь '
-                                      f'в модерацию \n\n{u.checkBills().text()}')
+    # b = u.checkBills()
+    # if not b:
+    text = 'Введите начальную точку маршрута. Указывайте адрес как можно точнее, чтобы бот вас понял. ' \
+           'Например, "Иркутск, Партизанская 1"' \
+           'Введите "отмена" для отмены'
+    bot.delete_message(msg.chat.id, msg.id)
+    bot.send_message(msg.chat.id, text)
+    bot.register_next_step_handler(msg, new_path2)
+    # else:
+    #     bot.send_message(msg.chat.id, 'Оплатите все счета для продолжения. При возникновении проблем обращайтесь '
+    #                                   f'в модерацию \n\n{u.checkBills().text()}')
 
 
 def new_path2(msg, from_point=None):
@@ -287,7 +322,7 @@ def find_request(call, user_id, page=0):
 
 def find_path(call, user_id, page=0):
     keyboard = types.InlineKeyboardMarkup()
-    paths = Path.getAllPathsId(paginition=True)
+    paths = Path.getAllPathsId(pagination=True)
     for path_id in paths[page]:  # TODO система поиска
         p = Path.getPath(path_id)
         if p.finish_time is None:
